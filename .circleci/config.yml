@@ -39,7 +39,7 @@ jobs:
                        --out /tmp/test-results/rspec.xml \
                        $TEST_FILES
             ./cc-test-reporter sum-coverage coverage/coverage.json --debug
-            ./cc-test-reporter after-build --coverage-input-type simplecov --prefix coverage --exit-code --debug $?
+            ./cc-test-reporter after-build --coverage-input-type simplecov --prefix coverage --debug --exit-code $?
 
       # collect reports
       - store_test_results:
