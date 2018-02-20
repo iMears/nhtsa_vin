@@ -66,9 +66,30 @@ describe NhtsaVin::Query do
         expect(client.error_code).to eq 11
       end
     end
+    context 'invalid response format' do
+      before do
+        allow(client).to receive(:fetch).and_return('This is not JSON')
+        client.get
+      end
+      it 'is not valid' do
+        expect(client).not_to be_valid
+      end
+      it 'has an error message' do
+        expect(client.error).to eq 'Response is not valid JSON'
+      end
+    end
+    context 'HTTP error' do
+      it '5xx' do
+        resp = Net::HTTPServerError.new(1.1, 503, 'Service unhappy')
+        allow_any_instance_of(Net::HTTP).to receive(:request).and_return(resp)
+        client.get
+        expect(client).not_to be_valid
+        expect(client.error).to eq 'Service unhappy'
+      end
+    end
     context 'connection or network error' do
       before do
-        allow(Net::HTTP).to receive(:get_response).and_raise(Net::ReadTimeout)
+        allow_any_instance_of(Net::HTTP).to receive(:request).and_raise(Net::ReadTimeout)
         client.get
       end
       it 'should not raise' do

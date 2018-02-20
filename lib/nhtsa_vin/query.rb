@@ -10,13 +10,19 @@ module NhtsaVin
 
     def initialize(vin, options={})
       @vin = vin
+      @http_options = options[:http] || {}
       build_url
     end
 
     def get
       @raw_response = fetch
       return if @raw_response.nil?
-      parse(JSON.parse(@raw_response))
+      begin
+        parse(JSON.parse(@raw_response))
+      rescue JSON::ParserError
+        @valid = false
+        @error = 'Response is not valid JSON'
+      end
     end
 
     def valid?
@@ -92,19 +98,38 @@ module NhtsaVin
 
       def fetch
         begin
-          Net::HTTP.get(URI.parse(@url))
+          @valid = false
+
+          url = URI.parse(@url)
+          Net::HTTP.start(url.host, url.port, use_ssl: (url.scheme == 'https')) do |http|
+            @http_options.each do |key, val|
+              http.send("#{key}=", val) if val
+            end
+
+            resp = http.request_get(url)
+            case resp
+            when Net::HTTPSuccess
+              @valid = true
+              resp.body
+            when Net::HTTPRedirection
+              raise 'No support for HTTP redirection from NHTSA API'
+            when Net::HTTPClientError
+              @error = "Client error: #{resp.code} #{resp.message}"
+              nil
+            else
+              @error = resp.message
+              nil
+            end
+          end
         rescue Timeout::Error, Errno::EINVAL, Errno::ECONNRESET, EOFError, SocketError,
                Net::HTTPBadResponse, Net::HTTPHeaderSyntaxError,
                Net::ProtocolError, Errno::ECONNREFUSED => e
-          @valid = false
           @error = e.message
           nil
         end
       end
-
   end
 
   Struct.new('NhtsaResponse', :vin, :make, :model, :trim, :type, :year,
              :body_style, :vehicle_class, :doors)
 end
-
