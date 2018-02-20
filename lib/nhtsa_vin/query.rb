@@ -99,26 +99,27 @@ module NhtsaVin
       def fetch
         begin
           @valid = false
+
           url = URI.parse(@url)
+          Net::HTTP.start(url.host, url.port, use_ssl: (url.scheme == 'https')) do |http|
+            @http_options.each do |key, val|
+              http.send("#{key}=", val)  if val
+            end
 
-          http = Net::HTTP.new(url.host, url.port)
-          @http_options.each do |key, val|
-            http.send("#{key}=", val)  if val
-          end
-
-          resp = http.request_get(url.path)
-          case resp
-            when Net::HTTPSuccess
-              @valid = true
-              resp.body
-            when Net::HTTPRedirection
-              raise "No support for HTTP redirection from NHTSA API"
-            when Net::HTTPClientError
-              @error = "Client error: #{resp.code} #{resp.message}"
-              nil
-            else
-              @error = resp.message
-              nil
+            resp = http.request_get(url)
+            case resp
+              when Net::HTTPSuccess
+                @valid = true
+                resp.body
+              when Net::HTTPRedirection
+                raise "No support for HTTP redirection from NHTSA API"
+              when Net::HTTPClientError
+                @error = "Client error: #{resp.code} #{resp.message}"
+                nil
+              else
+                @error = resp.message
+                nil
+            end
           end
 
         rescue Timeout::Error, Errno::EINVAL, Errno::ECONNRESET, EOFError, SocketError,
