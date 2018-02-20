@@ -80,7 +80,8 @@ describe NhtsaVin::Query do
     end
     context 'HTTP error' do
       it '5xx' do
-        allow_any_instance_of(Net::HTTP).to receive(:request).and_return(Net::HTTPServerError.new(1.1, 503, 'Service unhappy'))
+        resp = Net::HTTPServerError.new(1.1, 503, 'Service unhappy')
+        allow_any_instance_of(Net::HTTP).to receive(:request).and_return(resp)
         client.get
         expect(client).not_to be_valid
         expect(client.error).to eq 'Service unhappy'
